@@ -28,10 +28,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: is-duplicate
     if: needs.is-duplicate.outputs.should_skip != 'true'
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+        python-version:
+          - "pypy3.9"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+        experimental: [ false ]
+        include:
+          - python-version: "~3.13.0-0"
+            experimental: true
+
 
     steps:
       - name: Check out code
@@ -114,6 +126,18 @@ jobs:
         with:
           name: dist-packages
           path: dist/*.tar.gz
+
+  check:  # This job does nothing and is only used for the branch protection
+    name: ✅ Ensure the required checks passing
+    if: always()
+    needs:
+      - test-code
+    runs-on: ubuntu-latest
+    steps:
+    - name: Decide whether the needed jobs succeeded or failed
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
 
   publish-to-test-pypi:
     name: Publish to TestPyPI
